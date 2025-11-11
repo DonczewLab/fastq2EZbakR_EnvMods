@@ -1,0 +1,66 @@
+__default__:
+  name: "f2ez_{rule}"
+  time: "02:00:00"
+  mem: "8G"
+  partition: "standard"
+
+fastqc:
+  time: "00:30:00"
+  mem: "4G"
+
+fastp_trim:
+  time: "01:00:00"
+  mem: "8G"
+
+star_index:
+  time: "04:00:00"
+  mem: "60G"
+  partition: "highmem"
+
+hisat2_index:
+  time: "01:30:00"
+  mem: "16G"
+
+star_align:
+  time: "04:00:00"
+  mem: "24G"
+
+hisat2_align:
+  time: "03:00:00"
+  mem: "20G"
+
+sort_by_name_and_filter:
+  time: "01:00:00"
+  mem: "12G"
+
+call_snps:
+  time: "02:00:00"
+  mem: "24G"
+
+featurecounts_genes:
+  time: "01:30:00"
+  mem: "16G"
+
+mutation_counts:
+  time: "02:00:00"
+  mem: "16G"
+
+merge_features_and_counts:
+  time: "01:00:00"
+  mem: "12G"
+
+colored_tracks:
+  time: "01:00:00"
+  mem: "8G"
+
+normalization_tmm:
+  time: "00:20:00"
+  mem: "6G"
+
+finalize_outputs:
+  time: "00:30:00"
+  mem: "8G"
+
+rsem_quant:
+  time: "02:00:00"
+  mem: "16G"
