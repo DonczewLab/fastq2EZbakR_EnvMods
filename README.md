@@ -16,7 +16,7 @@ This project is licensed under the Apache License 2.0 — see the [LICENSE](LICE
 ## Instructions to run on Slurm managed HPC  
 9A. Download version controlled repository
 ```
-git clone 
+git clone https://github.com/DonczewLab/fastq2EZbakR_EnvMods.git
 ```
 9B. Load modules
 ```
