@@ -1,0 +1,84 @@
+# ===============================
+# IO & samples
+# ===============================
+# For FASTQ mode: map sample -> directory containing FASTQs (R1/R2).
+# For BAM mode: map sample -> path to an existing BAM with MD tags.
+samples:
+  sampleA: "/path/to/data/sampleA"        # folder with R1/R2 fastqs
+  sampleB: "/path/to/data/sampleB"
+
+# If true, Snakefile will skip alignment and start from provided BAMs above.
+provide_bams: false
+
+# Paired-end reads?
+PE: true
+
+# ===============================
+# Genome / annotation / indices
+# ===============================
+genome: "/refs/hg38/GRCh38.primary_assembly.genome.fa"
+annotation: "/refs/hg38/gencode.v43.annotation.gtf"
+# Directory or prefix used for the aligner index
+indices: "/refs/hg38/STAR_2.7.11a_gencodev43"   # STAR genomeDir or HISAT2 prefix path
+aligner: "star"   # "star" or "hisat2"
+strandedness: "reverse"   # "reverse" (typical for dUTP), "yes" (stranded), "no" (unstranded)
+
+# Optional: list of control samples (by sample key) used for SNP calling
+control_samples: []
+
+# ===============================
+# Feature assignment toggles
+# (mirror what you want from fastq2EZbakR)
+# ===============================
+features:
+  genes: true
+  exons: false
+  exonic_bins: false
+  eej: false
+  eij: false
+
+# ===============================
+# Trimming / normalization / options
+# ===============================
+skip_trimming: false
+fastp_adapters: ""     # e.g. "--adapter_sequence=AGATCG..."; leave "" for auto-detect
+normalize: true        # compute TMM scale-factors for colored tracks
+lowRAM: false          # low-memory merges (if your scripts support it)
+
+# ===============================
+# RSEM (optional) – only if aligner is STAR
+# ===============================
+run_rsem: false
+rsem_index: "/refs/hg38/rsem/rsem_gencode_v43"
+
+# ===============================
+# Mutation tracks (per fastq2EZbakR defaults, usually "TC")
+# ===============================
+mut_tracks: "TC"
+
+# ===============================
+# Modules to load (your HPC names)
+# ===============================
+fastqc: "FastQC/0.12.1"
+fastp: "fastp/0.23.4"
+star: "STAR/2.7.11a"
+hisat2: "HISAT2/2.2.1"
+samtools: "SAMtools/1.17"
+bcftools: "BCFtools/1.17"
+subread: "Subread/2.0.6"      # for featureCounts
+igvtools: "IGVTools/2.16.1"
+parallel: "GNUParallel/20230922"
+python: "Python/3.10.12"      # a module that exposes `python`
+r_module: "R/4.3.1"
+rsem: "RSEM/1.3.3"
+
+# ===============================
+# Script entry points used by the Snakefile
+# (point these to the actual fastq2EZbakR helpers or your versions)
+# ===============================
+scripts:
+  mut_call_sh: "scripts/mut_call.sh"
+  merge_features_py: "scripts/merge_features_and_counts.py"
+  make_tracks_sh: "scripts/make_tracks.sh"
+  tmm_scale_R: "scripts/edgeR_scale_factors.R"
+  finalize_py: "scripts/finalize_outputs.py"
