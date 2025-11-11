@@ -13,3 +13,26 @@ and OMRF-specific cluster configuration files.
 ## License
 This project is licensed under the Apache License 2.0 — see the [LICENSE](LICENSE) file for details.
 
+## Instructions to run on Slurm managed HPC  
+9A. Download version controlled repository
+```
+git clone 
+```
+9B. Load modules
+```
+module purge
+module load slurm python/3.10 pandas/2.2.3 numpy/1.22.3 matplotlib/3.7.1
+```
+9C. Modify samples and config file
+```
+vim config/samples.csv
+vim config/config.yml
+```
+9D. Dry Run
+```
+snakemake -npr
+```
+9E. Run on HPC with config.yml options
+```
+sbatch --wrap="snakemake -j 50 --resources mem_mb=200000 --use-envmodules --latency-wait 300 --cluster-config config/cluster_config.yml --cluster 'sbatch -A {cluster.account} -p {cluster.partition} --cpus-per-task {threads} -t {cluster.time} --mem {cluster.mem} --job-name {cluster.name} --output {cluster.output}'"
+```
