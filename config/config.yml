@@ -22,15 +22,15 @@
 #     sampleB: "/path/to/sampleB.bam"
 
 # Optionally set this if using shared FASTQ folder + prefixes
-fastq_dir: "/path/to/all_fastqs"
+fastq_dir: "/s/cobre-dev-bio/boydk/Rafal_Lab/fastq_files"
 
 samples:
-  sampleA: "/s/cobre-dev-bio/boydk/Rafal_Lab/fastq_files/RDHTS192_S63_R1_001.fastq.gz"        # dir OR prefix, per above
-  sampleB: "/s/cobre-dev-bio/boydk/Rafal_Lab/fastq_files/RDHTS193_S64_R1_001.fastq.gz"
-  sampleC: "/s/cobre-dev-bio/boydk/Rafal_Lab/fastq_files/RDHTS195_S66_R1_001.fastq.gz"
-  sampleD: "/s/cobre-dev-bio/boydk/Rafal_Lab/fastq_files/RDHTS196_S67_R1_001.fastq.gz"
-  sampleE: "/s/cobre-dev-bio/boydk/Rafal_Lab/fastq_files/RDHTS198_S69_R1_001.fastq.gz"
-  sampleF: "/s/cobre-dev-bio/boydk/Rafal_Lab/fastq_files/RDHTS199_S70_R1_001.fastq.gz"
+  sampleA: "RDHTS192_S63_R1_001.fastq.gz"        # dir OR prefix, per above
+  sampleB: "RDHTS193_S64_R1_001.fastq.gz"
+  sampleC: "RDHTS195_S66_R1_001.fastq.gz"
+  sampleD: "RDHTS196_S67_R1_001.fastq.gz"
+  sampleE: "RDHTS198_S69_R1_001.fastq.gz"
+  sampleF: "RDHTS199_S70_R1_001.fastq.gz"
 
 # If true, Snakefile skips alignment and starts from provided BAMs above.
 provide_bams: false
