@@ -1,0 +1,608 @@
+############################################
+# Snakefile — fastq2EZbakR (envmodules)   #
+############################################
+# Env-modules version mimicking fastq2EZbakR
+# Run e.g.:
+#   snakemake -j 50 --use-envmodules --latency-wait 300 \
+#     --cluster-config config/cluster_config.yml \
+#     --cluster 'sbatch -A {cluster.account} -p {cluster.partition} \
+#                       --cpus-per-task {threads} -t {cluster.time} \
+#                       --mem={cluster.mem} \
+#                       --job-name {cluster.name} \
+#                       --output {cluster.output}'
+
+configfile: "config/config.yml"
+
+import os
+import glob
+
+# =========================
+# Samples & config helpers
+# =========================
+def cfg(key, default=None, required=False):
+    v = config.get(key, default)
+    if required and v is None:
+        raise ValueError(f"config['{key}'] is required")
+    return v
+
+SAMPLES   = list(config["samples"].keys())
+IS_FASTQ  = not config.get("provide_bams", False)
+ALIGNER   = config.get("aligner", "star").lower()
+FEATURES  = config.get("features", {})
+FINAL     = config.get("final_output",
+                       {"cB": True, "cUP": False, "arrow": False})
+
+def sample_fastqs(sample):
+    """
+    Resolve R1/R2 for a sample.
+
+    Two modes:
+      1. config['samples'][sample] is a DIRECTORY:
+           sampleA: "/path/to/sampleA_dir"
+         → glob *.fastq*/*.fq* inside that dir.
+      2. config['samples'][sample] is a PREFIX:
+           fastq_dir: "/path/to/all_fastqs"
+           samples:
+             sampleA: "sampleA"
+         → glob fastq_dir/sampleA*fastq* and sampleA*fq*.
+    """
+    entry = config["samples"][sample]
+
+    if os.path.isdir(entry):
+        root   = entry
+        prefix = ""
+    else:
+        # Treat as prefix
+        # If fastq_dir specified, use that, otherwise derive from entry's dirname.
+        root = cfg("fastq_dir", os.path.dirname(entry) or ".")
+        prefix = os.path.basename(entry)
+
+    patterns = []
+    if prefix:
+        patterns = [f"{prefix}*fastq*", f"{prefix}*fq*"]
+    else:
+        patterns = ["*.fastq*", "*.fq*"]
+
+    fq = []
+    for pat in patterns:
+        fq.extend(sorted(glob.glob(os.path.join(root, pat))))
+
+    if not fq:
+        raise ValueError(
+            f"No FASTQs found for sample '{sample}' in {root} with prefix '{prefix}'"
+        )
+
+    if config.get("PE", True):
+        r1 = [x for x in fq
+              if any(tag in os.path.basename(x)
+                     for tag in ["_R1", "R1.", "_1", "1."])]
+        r2 = [x for x in fq
+              if any(tag in os.path.basename(x)
+                     for tag in ["_R2", "R2.", "_2", "2."])]
+        if not r1 or not r2:
+            raise ValueError(
+                f"Could not find distinct R1/R2 for sample '{sample}' in {root}"
+            )
+        return {"r1": r1[0], "r2": r2[0]}
+    else:
+        return {"r1": fq[0]}
+
+def star_index_done():
+    return os.path.join(cfg("indices", required=True), "SAindex")
+
+def hisat_index_prefix():
+    return cfg("indices", required=True)
+
+# =========================
+# Rule all (match outputs)
+# =========================
+all_inputs = []
+
+# Universal outputs
+for s in SAMPLES:
+    all_inputs += [
+        f"results/sf_reads/{s}.sf.bam",
+        f"results/counts/{s}_counts.csv.gz",
+        f"results/merge_feature_and_muts/{s}_counts.csv.gz",
+    ]
+    # featureCounts outputs (genes/etc) — here we only wire "genes".
+    if FEATURES.get("genes", False):
+        all_inputs.append(f"results/featurecounts_genes/{s}.featureCounts.txt")
+    # You can extend here for exons/exonic_bins/eej/eij if you implement them.
+
+# SNP calls
+all_inputs += [
+    "results/snps/snps.txt",
+    "results/snps/snps.vcf",
+]
+
+# Colored tracks + optional normalization scale factors
+all_inputs += [f"results/tracks/{s}.TC.0.pos.tdf" for s in SAMPLES]
+if config.get("normalize", False):
+    all_inputs.append("results/normalization/scale/scale_factors.tsv")
+
+# Final products
+if FINAL.get("cB", True):
+    all_inputs.append("results/cB/cB.csv.gz")
+if FINAL.get("cUP", False):
+    all_inputs.append("results/cUP/cUP.csv.gz")
+if FINAL.get("arrow", False):
+    all_inputs.append("results/arrow_dataset/_DONE")
+
+# FASTQ-mode outputs
+if IS_FASTQ:
+    for s in SAMPLES:
+        if ALIGNER == "star":
+            all_inputs.append(f"results/align/{s}.Aligned.sortedByCoord.out.bam")
+        else:
+            all_inputs.append(f"results/align/{s}.sorted.bam")
+        all_inputs.append(f"results/fastqc/{s}_R1_fastqc.html")
+        if config.get("PE", True):
+            all_inputs.append(f"results/fastqc/{s}_R2_fastqc.html")
+    if config.get("run_rsem", False) and ALIGNER == "star":
+        for s in SAMPLES:
+            all_inputs.append(f"results/rsem/{s}.genes.results")
+
+rule all:
+    input:
+        all_inputs
+
+# =========================
+# FastQC (FASTQ mode)
+# =========================
+rule fastqc:
+    input:
+        lambda wc: sample_fastqs(wc.sample)["r1"],
+        lambda wc: sample_fastqs(wc.sample).get("r2", None)
+    output:
+        r1_html="results/fastqc/{sample}_R1_fastqc.html",
+        r1_zip ="results/fastqc/{sample}_R1_fastqc.zip",
+        r2_html="results/fastqc/{sample}_R2_fastqc.html",
+        r2_zip ="results/fastqc/{sample}_R2_fastqc.zip"
+    threads: 4
+    envmodules: cfg("fastqc")
+    log:
+        "results/logs/snakelogs/fastqc.{sample}.log"
+    shell:
+        r"""
+        mkdir -p results/fastqc
+
+        if [[ -n "{input[1]}" && "{input[1]}" != "None" ]]; then
+          fastqc -t {threads} -o results/fastqc {input[0]} {input[1]} > {log} 2>&1
+        else
+          fastqc -t {threads} -o results/fastqc {input[0]} > {log} 2>&1
+        fi
+
+        # Rename/link to deterministic names
+        # R1
+        r1_html=$(ls results/fastqc/*R1*_fastqc.html 2>/dev/null | head -n1 || true)
+        r1_zip=$(ls results/fastqc/*R1*_fastqc.zip  2>/dev/null | head -n1 || true)
+        if [[ -n "$r1_html" ]]; then cp "$r1_html" {output.r1_html}; else touch {output.r1_html}; fi
+        if [[ -n "$r1_zip"  ]]; then cp "$r1_zip"  {output.r1_zip};  else touch {output.r1_zip};  fi
+
+        # R2 (if present)
+        r2_html=$(ls results/fastqc/*R2*_fastqc.html 2>/dev/null | head -n1 || true)
+        r2_zip=$(ls results/fastqc/*R2*_fastqc.zip  2>/dev/null | head -n1 || true)
+        if [[ -n "$r2_html" ]]; then cp "$r2_html" {output.r2_html}; else touch {output.r2_html}; fi
+        if [[ -n "$r2_zip"  ]]; then cp "$r2_zip"  {output.r2_zip};  else touch {output.r2_zip};  fi
+        """
+
+# =========================
+# fastp trimming (optional)
+# =========================
+rule fastp_trim:
+    input:
+        lambda wc: sample_fastqs(wc.sample)["r1"],
+        lambda wc: sample_fastqs(wc.sample).get("r2", None)
+    output:
+        r1="results/trimmed/{sample}_R1.fastq.gz",
+        r2="results/trimmed/{sample}_R2.fastq.gz"
+    threads: 8
+    envmodules: cfg("fastp")
+    params:
+        adapters      = cfg("fastp_adapters", ""),
+        skip_trimming = cfg("skip_trimming", False)
+    log:
+        "results/logs/snakelogs/fastp.{sample}.log"
+    shell:
+        r"""
+        mkdir -p results/trimmed
+
+        if [[ "{params.skip_trimming}" == "True" || "{params.skip_trimming}" == "true" ]]; then
+          r1="{input[0]}"
+          r2="{input[1]}"
+
+          ln -sf "$(readlink -f "$r1")" {output.r1}
+          if [[ -n "$r2" && "$r2" != "None" ]]; then
+            ln -sf "$(readlink -f "$r2")" {output.r2}
+          else
+            # single-end: use R1 for both
+            ln -sf {output.r1} {output.r2}
+          fi
+        else
+          if [[ -n "{input[1]}" && "{input[1]}" != "None" ]]; then
+            fastp -w {threads} -i {input[0]} -I {input[1]} \
+                  -o {output.r1} -O {output.r2} {params.adapters} > {log} 2>&1
+          else
+            fastp -w {threads} -i {input[0]} -o {output.r1} {params.adapters} > {log} 2>&1
+            ln -sf {output.r1} {output.r2}
+          fi
+        fi
+        """
+
+# =========================
+# Index build (if needed)
+# =========================
+rule star_index:
+    input:
+        genome    = cfg("genome", required=True),
+        annotation= cfg("annotation", required=True)
+    output:
+        star_index_done()
+    threads: 12
+    envmodules: cfg("star")
+    params:
+        index_dir = cfg("indices", required=True)
+    log:
+        "results/logs/snakelogs/star_index.log"
+    shell:
+        r"""
+        mkdir -p {params.index_dir}
+        STAR --runThreadN {threads} --runMode genomeGenerate \
+             --genomeDir {params.index_dir} \
+             --genomeFastaFiles {input.genome} \
+             --sjdbGTFfile {input.annotation} \
+             --sjdbOverhang 100 > {log} 2>&1
+        """
+
+rule hisat2_index:
+    input:
+        cfg("genome", required=True)
+    output:
+        hisat_index_prefix() + ".1.ht2"
+    threads: 6
+    envmodules: cfg("hisat2")
+    params:
+        index_prefix = cfg("indices", required=True)
+    log:
+        "results/logs/snakelogs/hisat2_index.log"
+    shell:
+        r"""
+        hisat2-build -p {threads} {input} {params.index_prefix} > {log} 2>&1
+        """
+
+# =========================
+# Alignment (FASTQ mode)
+# =========================
+rule star_align:
+    input:
+        r1        = rules.fastp_trim.output.r1,
+        r2        = rules.fastp_trim.output.r2,
+        index_done= star_index_done()
+    output:
+        bam = "results/align/{sample}.Aligned.sortedByCoord.out.bam"
+    threads: 16
+    envmodules: cfg("star")
+    params:
+        index_dir = cfg("indices", required=True),
+        stranded  = cfg("strandedness", "reverse")
+    log:
+        "results/logs/snakelogs/star_align.{sample}.log"
+    shell:
+        r"""
+        mkdir -p results/align
+        STAR --runThreadN {threads} --genomeDir {params.index_dir} \
+             --readFilesIn {input.r1} {input.r2} --readFilesCommand zcat \
+             --outSAMtype BAM SortedByCoordinate \
+             --outFileNamePrefix results/align/{wildcards.sample}. \
+             --outSAMattributes NH HI AS nM MD jM jI XS \
+             --outSAMstrandField intronMotif > {log} 2>&1
+        """
+
+rule hisat2_align:
+    input:
+        r1 = rules.fastp_trim.output.r1,
+        r2 = rules.fastp_trim.output.r2
+    output:
+        bam = "results/align/{sample}.sorted.bam"
+    threads: 16
+    envmodules: cfg("hisat2"), cfg("samtools")
+    params:
+        index_prefix = cfg("indices", required=True)
+    log:
+        "results/logs/snakelogs/hisat2_align.{sample}.log"
+    shell:
+        r"""
+        mkdir -p results/align
+        hisat2 -p {threads} -x {params.index_prefix} \
+               -1 {input.r1} -2 {input.r2} \
+          | samtools sort -@ {threads} -o {output.bam} > {log} 2>&1
+        """
+
+# =========================
+# Start from BAM mode
+# =========================
+rule accept_provided_bam:
+    """
+    In BAM mode (provide_bams: true), each samples[sample] is
+    a BAM path with MD tags; we copy/convert to results/align/{sample}.provided.bam.
+    """
+    input:
+        lambda wc: config["samples"][wc.sample]
+    output:
+        bam = "results/align/{sample}.provided.bam"
+    threads: 4
+    envmodules: cfg("samtools")
+    log:
+        "results/logs/snakelogs/accept_bam.{sample}.log"
+    shell:
+        r"""
+        mkdir -p results/align
+        samtools view -@ {threads} -b {input} > {output.bam} 2> {log}
+        """
+
+# =========================
+# Name-sort & filter BAMs
+# =========================
+rule sort_by_name_and_filter:
+    input:
+        bam = lambda wc: (
+            f"results/align/{wc.sample}.Aligned.sortedByCoord.out.bam"
+            if IS_FASTQ and ALIGNER == "star" else
+            (f"results/align/{wc.sample}.sorted.bam"
+             if IS_FASTQ else
+             f"results/align/{wc.sample}.provided.bam")
+        )
+    output:
+        bam = "results/sf_reads/{sample}.sf.bam"
+    threads: 8
+    envmodules: cfg("samtools")
+    log:
+        "results/logs/snakelogs/sf.{sample}.log"
+    shell:
+        r"""
+        mkdir -p results/sf_reads
+        # remove unmapped, secondary, supplementary; keep primary aligned
+        samtools view -h -F 2308 {input.bam} \
+          | samtools sort -n -@ {threads} -o {output.bam} > {log} 2>&1
+        """
+
+# =========================
+# SNP calling
+# =========================
+rule call_snps:
+    input:
+        bam    = expand("results/sf_reads/{sample}.sf.bam",
+                        sample=config.get("control_samples", [])),
+        genome = cfg("genome", required=True)
+    output:
+        txt = "results/snps/snps.txt",
+        vcf = "results/snps/snps.vcf"
+    threads: 8
+    envmodules: cfg("samtools"), cfg("bcftools")
+    log:
+        "results/logs/snakelogs/snps.log"
+    run:
+        os.makedirs("results/snps", exist_ok=True)
+        if len(input.bam) == 0:
+            open(output.txt, "w").close()
+            open(output.vcf, "w").close()
+        else:
+            bam_list = " ".join(input.bam)
+            shell(f"""
+                samtools merge -@ {threads} -n results/snps/controls.merged.bam {bam_list} >> {log} 2>&1
+                samtools fixmate -@ {threads} -m results/snps/controls.merged.bam results/snps/controls.fx.bam >> {log} 2>&1
+                samtools sort -@ {threads} -o results/snps/controls.sorted.bam results/snps/controls.fx.bam >> {log} 2>&1
+                samtools mpileup -f {input.genome} results/snps/controls.sorted.bam \
+                  | bcftools call -mv -Oz -o results/snps/snps.vcf.gz >> {log} 2>&1
+                bcftools index -f results/snps/snps.vcf.gz >> {log} 2>&1
+                bcftools view -Ov results/snps/snps.vcf.gz > {output.vcf}
+                bcftools query -f '%CHROM\\t%POS\\n' {output.vcf} > {output.txt}
+            """)
+
+# =========================
+# Feature assignment (genes only here)
+# =========================
+def fc_dir(tag):
+    return f"results/featurecounts_{tag}"
+
+rule featurecounts_genes:
+    input:
+        bam       = "results/sf_reads/{sample}.sf.bam",
+        annotation= cfg("annotation", required=True)
+    output:
+        txt = fc_dir("genes") + "/{sample}.featureCounts.txt"
+    threads: 8
+    envmodules: cfg("subread")
+    params:
+        stranded_code = (
+            1 if cfg("strandedness","reverse") == "reverse"
+            else (2 if cfg("strandedness") == "yes" else 0)
+        ),
+        outdir = fc_dir("genes")
+    log:
+        "results/logs/snakelogs/featurecounts_genes.{sample}.log"
+    shell:
+        r"""
+        mkdir -p {params.outdir}
+        featureCounts -T {threads} -a {input.annotation} -o {output.txt} \
+          -t exon -g gene_id -s {params.stranded_code} {input.bam} > {log} 2>&1
+        """
+
+# Stub proxy if you want to guarantee dirs exist even if not using them now
+rule featurecounts_proxy:
+    input:
+        "results/sf_reads/{sample}.sf.bam"
+    output:
+        touch("results/featurecounts/.done.{sample}")
+    run:
+        os.makedirs("results/featurecounts_genes", exist_ok=True)
+        os.makedirs("results/featurecounts_exons", exist_ok=True)
+        os.makedirs("results/featurecounts_exonic_bins", exist_ok=True)
+        os.makedirs("results/featurecounts_eej", exist_ok=True)
+        os.makedirs("results/featurecounts_eij", exist_ok=True)
+
+# =========================
+# Mutation counting
+# =========================
+rule mutation_counts:
+    input:
+        bam  = "results/sf_reads/{sample}.sf.bam",
+        snps = "results/snps/snps.txt"
+    output:
+        gz = "results/counts/{sample}_counts.csv.gz"
+    threads: 8
+    envmodules: cfg("python"), cfg("parallel")
+    params:
+        mut_call_sh = cfg("scripts")["mut_call_sh"],
+        mut_tracks  = cfg("mut_tracks", "TC")
+    log:
+        "results/logs/snakelogs/mut_counts.{sample}.log"
+    shell:
+        r"""
+        mkdir -p results/counts
+        bash {params.mut_call_sh} \
+          --bam {input.bam} \
+          --snps {input.snps} \
+          --out {output.gz} \
+          --mut-tracks "{params.mut_tracks}" \
+          --threads {threads} > {log} 2>&1
+        """
+
+# =========================
+# Merge features + mutations
+# =========================
+rule merge_features_and_counts:
+    input:
+        counts = expand("results/counts/{sample}_counts.csv.gz",
+                        sample=SAMPLES)
+    output:
+        merged = expand("results/merge_feature_and_muts/{sample}_counts.csv.gz",
+                        sample=SAMPLES)
+    threads: 8
+    envmodules: cfg("python")
+    params:
+        merge_py   = cfg("scripts")["merge_features_py"],
+        lowram     = cfg("lowRAM", False),
+        features   = FEATURES,
+        annotation = cfg("annotation", required=True)
+    log:
+        "results/logs/snakelogs/merge_features.log"
+    shell:
+        r"""
+        mkdir -p results/merge_feature_and_muts results/lowram_merge_features_and_counts
+        python {params.merge_py} \
+          --counts-dir results/counts \
+          --features '{params.features}' \
+          --annotation {params.annotation} \
+          --out-dir results/merge_feature_and_muts \
+          --lowram {1 if params.lowram else 0} > {log} 2>&1
+        """
+
+# =========================
+# Colored tracks & normalization
+# =========================
+rule colored_tracks:
+    input:
+        bam = (expand("results/align/{sample}.Aligned.sortedByCoord.out.bam",
+                      sample=SAMPLES)
+               if ALIGNER == "star"
+               else expand("results/align/{sample}.sorted.bam",
+                           sample=SAMPLES))
+    output:
+        tdf = expand("results/tracks/{sample}.TC.0.pos.tdf", sample=SAMPLES)
+    threads: 8
+    envmodules: cfg("star"), cfg("igvtools"), cfg("parallel")
+    params:
+        make_tracks_sh = cfg("scripts")["make_tracks_sh"],
+        WSL            = 1 if cfg("WSL", False) else 0
+    log:
+        "results/logs/snakelogs/tracks.log"
+    shell:
+        r"""
+        mkdir -p results/tracks
+        bash {params.make_tracks_sh} \
+          --bam-dir results/align \
+          --out-dir results/tracks \
+          --wsl {params.WSL} > {log} 2>&1
+        """
+
+rule normalization_tmm:
+    input:
+        tracks = rules.colored_tracks.output.tdf
+    output:
+        scales = "results/normalization/scale/scale_factors.tsv"
+    threads: 2
+    envmodules: cfg("r_module")
+    params:
+        tmm_R = cfg("scripts")["tmm_scale_R"]
+    log:
+        "results/logs/snakelogs/tmm.log"
+    shell:
+        r"""
+        mkdir -p results/normalization/scale
+        Rscript {params.tmm_R} results/tracks {output.scales} > {log} 2>&1
+        """
+
+# =========================
+# Final outputs: cB / cUP / Arrow
+# =========================
+rule finalize_outputs:
+    input:
+        merged = expand("results/merge_feature_and_muts/{sample}_counts.csv.gz",
+                        sample=SAMPLES)
+    output:
+        cb    = "results/cB/cB.csv.gz"
+                if FINAL.get("cB", True)
+                else temp("results/cB/_skip"),
+        cup   = "results/cUP/cUP.csv.gz"
+                if FINAL.get("cUP", False)
+                else temp("results/cUP/_skip"),
+        arrow = "results/arrow_dataset/_DONE"
+                if FINAL.get("arrow", False)
+                else temp("results/arrow_dataset/_skip")
+    threads: 4
+    envmodules: cfg("python"), cfg("r_module")
+    params:
+        finalize_py = cfg("scripts")["finalize_py"],
+        finalize_cB    = FINAL.get("cB", True),
+        finalize_cUP   = FINAL.get("cUP", False),
+        finalize_arrow = FINAL.get("arrow", False),
+        lowram         = cfg("lowRAM", False)
+    log:
+        "results/logs/snakelogs/finalize.log"
+    shell:
+        r"""
+        mkdir -p results/cB results/cUP results/arrow_dataset
+        python {params.finalize_py} \
+          --merged-dir results/merge_feature_and_muts \
+          --finalize-cB {1 if params.finalize_cB else 0} \
+          --finalize-cUP {1 if params.finalize_cUP else 0} \
+          --finalize-arrow {1 if params.finalize_arrow else 0} \
+          --lowram {1 if params.lowram else 0} \
+          --out-cb {output.cb} \
+          --out-cup {output.cup} \
+          --arrow-dir results/arrow_dataset > {log} 2>&1
+        [[ -f results/arrow_dataset/_DONE ]] || touch results/arrow_dataset/_DONE
+        """
+
+# =========================
+# Optional: RSEM quant
+# =========================
+rule rsem_quant:
+    input:
+        bam = lambda wc: f"results/align/{wc.sample}.Aligned.sortedByCoord.out.bam"
+    output:
+        genes = "results/rsem/{sample}.genes.results"
+    threads: 8
+    envmodules: cfg("rsem")
+    params:
+        rsem_index = cfg("rsem_index", required=True)
+    log:
+        "results/logs/snakelogs/rsem.{sample}.log"
+    shell:
+        r"""
+        mkdir -p results/rsem
+        rsem-calculate-expression --alignments -p {threads} \
+          {input.bam} {params.rsem_index} results/rsem/{wildcards.sample} > {log} 2>&1
+        """
