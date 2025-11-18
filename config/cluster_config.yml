@@ -2,7 +2,7 @@ __default__:
   name: "f2ez_{rule}"
   time: "02:00:00"
   mem: "8G"
-  partition: "standard"
+  partition: "serial"
   # EDIT this to your Slurm allocation:
   account: "sansam-lab"
   # Log path; {rule} and {wildcards} are expanded by Snakemake
