@@ -3,6 +3,10 @@ __default__:
   time: "02:00:00"
   mem: "8G"
   partition: "standard"
+  # EDIT this to your Slurm allocation:
+  account: "sansam-lab"
+  # Log path; {rule} and {wildcards} are expanded by Snakemake
+  output: "logs/{rule}.{wildcards}.%j.out"
 
 fastqc:
   time: "00:30:00"
