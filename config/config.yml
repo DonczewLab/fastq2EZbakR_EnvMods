@@ -41,8 +41,8 @@ PE: true
 # ===============================
 # Genome / annotation / indices
 # ===============================
-genome: "/refs/hg38/GRCh38.primary_assembly.genome.fa"
-annotation: "/refs/hg38/gencode.v43.annotation.gtf"
+genome: "/hpc-prj/donczew/genomic_resources/Scerevisiae_GCF_000146045.2/SGD_R64-3-1_genome.fna"
+annotation: "/hpc-prj/donczew/genomic_resources/Scerevisiae_GCF_000146045.2/SGD_R64-3-1.gtf"
 
 # Directory or prefix used for the aligner index
 indices: "/refs/hg38/STAR_2.7.11a_gencodev43"   # STAR genomeDir or HISAT2 prefix path
