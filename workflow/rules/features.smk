@@ -237,6 +237,7 @@ rule junction_annotation:
     threads: 1
     envmodules:
         config["modules"]["r"],
+        config["modules"]["bioconductor"],
     shell:
         r"""
         set -euo pipefail
