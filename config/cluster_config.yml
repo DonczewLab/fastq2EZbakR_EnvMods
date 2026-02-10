@@ -1,70 +1,71 @@
 __default__:
-  name: "f2ez_{rule}"
-  time: "02:00:00"
-  mem: "8G"
-  partition: "serial"
-  # EDIT this to your Slurm allocation:
-  account: "sansam-lab"
-  # Log path; {rule} and {wildcards} are expanded by Snakemake
-  output: "logs/{rule}.{wildcards}.%j.out"
-
-fastqc:
-  time: "00:30:00"
-  mem: "4G"
-
-fastp_trim:
-  time: "01:00:00"
-  mem: "8G"
-
-star_index:
-  time: "04:00:00"
-  mem: "60G"
-  partition: "highmem"
-
-hisat2_index:
-  time: "01:30:00"
+  account: sansam-lab
+  partition: serial
+  time: "08:00:00"
+  cpus-per-task: 2
   mem: "16G"
+  name: "{rule}.{wildcards}"
+  output: "logs/snakefiles/{rule}.%j.out"
+  error:  "logs/snakefiles/{rule}.%j.err"
 
-star_align:
+# STAR build index (usually once)
+index:
+  cpus-per-task: 24
+  mem: "64G"
+  time: "08:00:00"
+  name: "{rule}"
+
+# STAR align (per sample)
+align:
+  cpus-per-task: 24
+  mem: "64G"
+  time: "08:00:00"
+  name: "{rule}.{wildcards.sample}"
+
+# sort/filter BAM (per sample)
+sort_filter:
+  cpus-per-task: 8
+  mem: "32G"
   time: "04:00:00"
-  mem: "24G"
+  name: "{rule}.{wildcards.sample}"
 
-hisat2_align:
-  time: "03:00:00"
-  mem: "20G"
+# mutation counting (per sample) — often heavy
+cnt_muts:
+  cpus-per-task: 32
+  mem: "96G"
+  time: "12:00:00"
+  name: "{rule}.{wildcards.sample}"
 
-sort_by_name_and_filter:
-  time: "01:00:00"
-  mem: "12G"
+# duckdb merge (per sample) — heavy
+merge_features_and_muts:
+  cpus-per-task: 32
+  mem: "96G"
+  time: "12:00:00"
+  name: "{rule}.{wildcards.sample}"
 
-call_snps:
-  time: "02:00:00"
-  mem: "24G"
-
+# featureCounts (per sample)
 featurecounts_genes:
-  time: "01:30:00"
-  mem: "16G"
+  cpus-per-task: 20
+  mem: "32G"
+  time: "04:00:00"
+  name: "{rule}.{wildcards.sample}"
 
-mutation_counts:
-  time: "02:00:00"
-  mem: "16G"
+featurecounts_exons:
+  cpus-per-task: 20
+  mem: "32G"
+  time: "04:00:00"
+  name: "{rule}.{wildcards.sample}"
 
-merge_features_and_counts:
-  time: "01:00:00"
-  mem: "12G"
+# RSEM (per sample)
+RSEM:
+  cpus-per-task: 20
+  mem: "64G"
+  time: "08:00:00"
+  name: "{rule}.{wildcards.sample}"
 
-colored_tracks:
-  time: "01:00:00"
+# MultiQC (once)
+multiqc:
+  cpus-per-task: 2
   mem: "8G"
-
-normalization_tmm:
-  time: "00:20:00"
-  mem: "6G"
-
-finalize_outputs:
-  time: "00:30:00"
-  mem: "8G"
-
-rsem_quant:
-  time: "02:00:00"
-  mem: "16G"
+  time: "01:00:00"
+  name: "{rule}"
