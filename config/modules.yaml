@@ -1,0 +1,25 @@
+modules:
+  python: "python/3.10.2"
+  r: "R/4.5.1-mkl"
+  bioconductor: "bioconductor/3.21"
+
+  fastp: "fastp/1.0.1"
+  fastqc: "fastqc/0.12.1"
+  multiqc: "multiqc/1.21"
+
+  star: "star/2.7.11b"
+  hisat2: "hisat2/2.2.1" 
+  bowtie: "bowtie2/2.5.4"
+
+  samtools: "samtools/1.18"
+  bcftools: "bcftools/1.14"
+  subread: "subread/2.1.1"
+  rsem: "rsem/1.3.3"
+
+  bedtools: "bedtools/2.30.0"
+  deeptools: "deeptools/3.5.4"
+  ucsc: "ucsc/20200225"
+  igvtools: "igvtools/2.3.32"
+  ncbi_sra: "ncbi_sra/3.1.1"
+  htseq: "htseq/2.0.3"
+  java: "java/amazon-corretto/11.0.7.10.1"
