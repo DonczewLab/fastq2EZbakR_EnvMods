@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH -A sansam-lab
+#SBATCH -A donczew-lab
 #SBATCH -p serial
 #SBATCH -t 08:00:00
 #SBATCH --mem=4G
