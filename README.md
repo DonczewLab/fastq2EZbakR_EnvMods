@@ -178,8 +178,8 @@ Add them to:
 + `samples`
 + Update `control_samples` if applicable
 
-Place FASTQs or BAMs in the specified locations
-No other pipeline files need to be edited
+Place FASTQs or BAMs in the specified locations  
+No other pipeline files need to be edited  
 
 ---
 
