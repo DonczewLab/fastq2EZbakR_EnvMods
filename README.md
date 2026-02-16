@@ -113,7 +113,7 @@ control_samples:
 ### 1D) Input data modes
 The pipeline supports two mutually exclusive input modes.
 
-### FASTQ input (default)
+#### FASTQ input (default)
 Used when starting from raw sequencing data.
 
 ```yaml
@@ -143,7 +143,7 @@ Single-end data (`PE: False`)
 ```
 + Both compressed and uncompressed FASTQs are supported.
 
-### BAM input (skip preprocessing)
+#### BAM input (skip preprocessing)
 Used when alignments already exist.
 ```yaml
 bam2bakr: True
