@@ -191,7 +191,7 @@ Add them to:
 Place FASTQs or BAMs in the specified locations
 No other pipeline files need to be edited
 
-## 8. Environment modules
+## 8. Environment modules (modified from original workflow)
 All software dependencies are defined in:
 ```yaml
 config/modules.yaml
@@ -207,7 +207,7 @@ This allows:
 + Reproducible execution on shared HPC systems
 + Compatibility with snakemake --use-envmodules
 
-## 9. Running the pipeline
+## 9. Running the pipeline (modified from original workflow)
 ### Instructions to run on Slurm managed HPC  
 9A. Download version controlled repository
 ```
