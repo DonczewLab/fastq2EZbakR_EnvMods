@@ -33,7 +33,8 @@ This workflow is adapted from [fastq2EZbakR](https://github.com/isaacvock/fastq2
 # 1. Sample Configuration Guide
 
 This section explains **how to define samples** for use with this pipeline.  
-Samples are defined in `config/config.yaml`. No other files need to be modified when changing samples, provided file paths are valid.
++ Samples are defined in `config/config.yaml`.
++ No other files need to be modified when changing samples, provided file paths are valid.
 
 ### 1A) Sample identifiers
 
