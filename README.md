@@ -198,7 +198,7 @@ annotation: data/annotation/genome.gtf
 ```
 
 ## C) Optional: Star Index (Alignment indices will be created automatically if not present).
-```
+```yaml
 indices: data/indices/star_index
 ```
 
