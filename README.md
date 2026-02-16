@@ -166,21 +166,7 @@ When `bam2bakr: True:`
 
 ---
 
-## E) Genome and annotation
-
-The following files must exist before running the pipeline.
-```yaml
-genome: data/genome/genome.fasta
-annotation: data/annotation/genome.gtf
-```
-Alignment indices will be created automatically if not present.
-```
-indices: data/indices/star_index
-```
-
----
-
-## F) Adding or changing samples
+## E) Adding or changing samples
 To add new samples:
 
 Define new sample IDs
@@ -197,11 +183,34 @@ No other pipeline files need to be edited
 
 ---
 
-# 2. Environment modules (modified from original workflow)
+# 2. Genome and annotation
+
+The following files must exist before running the pipeline.
+
+## A) Genome fasta
+```yaml
+genome: data/genome/genome.fasta
+```
+
+## B) Annotation GTF
+```yaml
+annotation: data/annotation/genome.gtf
+```
+
+## C) Optional: Star Index (Alignment indices will be created automatically if not present).
+```
+indices: data/indices/star_index
+```
+
+---
+
+# 3. Environment modules (modified from original workflow)
+
 All software dependencies are defined in:
 ```yaml
 config/modules.yaml
 ```
+
 Snakemake rules load modules using:
 ```yaml
 envmodules:
