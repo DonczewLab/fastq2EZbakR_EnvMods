@@ -61,6 +61,8 @@ Sample ID rules:
 + Should not contain spaces
 + Filesystem-safe characters only (letters, numbers, underscores recommended)
 
+---
+
 ## 2. Required sample-level parameters
 
 Each sample must appear in the following config sections.
@@ -89,6 +91,8 @@ polds:
 + Every sample ID must appear in both dictionaries
 + Values are passed directly to EZbakR modeling steps
 
+---
+
 ## 3. Control samples
 
 Control samples must be explicitly listed.
@@ -101,6 +105,8 @@ control_samples:
 
 + Sample IDs must match exactly
 + Used for EZbakR model specification
+
+---
 
 ## 4. Input data modes
 The pipeline supports two mutually exclusive input modes.
@@ -156,6 +162,8 @@ When `bam2bakr: True:`
 + Alignment is skipped
 + Index generation is skipped
 
+---
+
 ## 5. Paired-end vs single-end
 Set globally in the config file.
 
@@ -164,6 +172,8 @@ or
 `PE: False`
 
 + All samples are assumed to follow the same layout
+
+---
 
 ## 6. Genome and annotation
 The following files must exist before running the pipeline.
@@ -175,6 +185,8 @@ annotation: data/annotation/genome.gtf
 ```
 indices: data/indices/star_index
 ```
+
+---
 
 ## 7. Adding or changing samples
 To add new samples:
@@ -191,6 +203,8 @@ Add them to:
 Place FASTQs or BAMs in the specified locations
 No other pipeline files need to be edited
 
+---
+
 ## 8. Environment modules (modified from original workflow)
 All software dependencies are defined in:
 ```yaml
@@ -206,6 +220,8 @@ This allows:
 + Centralized software version control
 + Reproducible execution on shared HPC systems
 + Compatibility with snakemake --use-envmodules
+
+---
 
 ## 9. Running the pipeline (modified from original workflow)
 ### Instructions to run on Slurm managed HPC  
@@ -231,5 +247,19 @@ snakemake -npr
 sbatch submit_fastq2ezbark.sh
 ```
 
-## 10. License
-This project is licensed under the Apache License 2.0 — see the [LICENSE](LICENSE) file for details.
+---
+
+## 10. Licensing
+
+This repository contains workflow infrastructure, configuration adaptations,
+and HPC environment-module integration developed by the Donczew Lab.
+
+These additions are licensed under the Apache License 2.0 — see the [LICENSE](LICENSE) file for details
+
+This repository is designed to execute the fastq2EZbakR workflow developed by
+Vock et al. The original fastq2EZbakR source code is not relicensed here and
+remains subject to its original terms and authorship.
+
+Users should obtain the original fastq2EZbakR software from:
+https://github.com/isaacvock/fastq2EZbakR
+[fastq2EZbakR](https://github.com/isaacvock/fastq2EZbakR)
