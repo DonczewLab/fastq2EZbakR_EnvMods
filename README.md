@@ -91,7 +91,7 @@ polds:
 + Every sample ID must appear in both dictionaries
 + Values are passed directly to EZbakR modeling steps
 
-*The default 0.5 / 0.5 values are neutral priors that allow the pipeline to run, but they are not biologically meaningful. For quantitative interpretation (e.g., estimating RNA synthesis or decay rates), these values should be estimated empirically from the experiment (based on labeling time, incorporation efficiency, or observed global conversion rates).*
+The default 0.5 / 0.5 values are neutral priors that allow the pipeline to run, but they are not biologically meaningful. For quantitative interpretation (e.g., estimating RNA synthesis or decay rates), these values should be estimated empirically from the experiment (based on labeling time, incorporation efficiency, or observed global conversion rates).
 
 ---
 
