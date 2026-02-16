@@ -114,14 +114,13 @@ control_samples:
 The pipeline supports two mutually exclusive input modes.
 
 #### **FASTQ input (default)**
-Used when starting from raw sequencing data.
+
++ Used when starting from raw sequencing data.
 
 ```yaml
 bam2bakr: False
 ```
-
-Each sample maps to a directory containing FASTQ files.
-
++ Each sample maps to a directory containing FASTQ files.
 ```yaml
 samples:
   WT_1: data/fastq/WT_1
@@ -132,23 +131,23 @@ samples:
   KO_ctl: data/fastq/KO_ctl
 FASTQ directory expectations
 ```
-Paired-end data (`PE: True`)
++ Paired-end data (`PE: True`)
 ```yaml
 *_R1*.fastq.gz
 *_R2*.fastq.gz
 ```
-Single-end data (`PE: False`)
++ Single-end data (`PE: False`)
 ```yaml
 *.fastq.gz
 ```
 + Both compressed and uncompressed FASTQs are supported.
 
 #### **BAM input (skip preprocessing)**
-Used when alignments already exist.
++ Used when alignments already exist.
 ```yaml
 bam2bakr: True
 ```
-Each sample maps directly to a BAM file.
++ Each sample maps directly to a BAM file.
 ```yaml
 samples:
   WT_1: data/bams/WT_1.bam
