@@ -35,7 +35,7 @@ This workflow is adapted from [fastq2EZbakR](https://github.com/isaacvock/fastq2
 This section explains **how to define samples** for use with this pipeline.  
 Samples are defined in `config/config.yaml`. No other files need to be modified when changing samples, provided file paths are valid.
 
-## A) Sample identifiers
+### 1A) Sample identifiers
 
 Samples are defined by **sample IDs**, which are used consistently across:
 
@@ -61,7 +61,7 @@ Sample ID rules:
 
 ---
 
-## B) Required sample-level parameters
+### 1B) Required sample-level parameters
 
 Each sample must appear in the following config sections.
 
@@ -95,7 +95,7 @@ polds:
 
 ---
 
-## C) Control samples
+### 1C) Control samples
 
 Control samples must be explicitly listed.
 
@@ -110,7 +110,7 @@ control_samples:
 
 ---
 
-## D) Input data modes
+### 1D) Input data modes
 The pipeline supports two mutually exclusive input modes.
 
 ### FASTQ input (default)
@@ -166,7 +166,7 @@ When `bam2bakr: True:`
 
 ---
 
-## E) Adding or changing samples
+### 1E) Adding or changing samples
 To add new samples:
 
 Define new sample IDs
@@ -187,17 +187,17 @@ No other pipeline files need to be edited
 
 The following files must exist before running the pipeline.
 
-## A) Genome fasta
+### 2A) Genome fasta
 ```yaml
 genome: data/genome/genome.fasta
 ```
 
-## B) Annotation GTF
+### 2B) Annotation GTF
 ```yaml
 annotation: data/annotation/genome.gtf
 ```
 
-## C) Optional: Star Index (Alignment indices will be created automatically if not present).
+### 2C) Optional: Star Index (Alignment indices will be created automatically if not present).
 ```yaml
 indices: data/indices/star_index
 ```
@@ -224,26 +224,32 @@ This allows:
 
 ---
 
-## 3. Running the pipeline (modified from original workflow)
-### Instructions to run on Slurm managed HPC  
-3A. Download version controlled repository
+# 4. Running the pipeline (modified from original workflow)
+
++ Instructions to run on Slurm managed HPC  
+
+### 4A. Download version controlled repository
 ```
 git clone https://github.com/DonczewLab/fastq2EZbakR_EnvMods.git
 ```
-3B. Load modules
+
+### 4B. Load modules
 ```
 module purge
 module load slurm python/3.10
 ```
-3C. Modify config file
+
+### 4C. Modify config file
 ```
 vim config/config.yml
 ```
-3D. Dry Run
+
+### 4D. Dry Run
 ```
 snakemake -npr
 ```
-3E. Run on HPC with config.yml options
+
+### 4E. Run on HPC with config.yml options
 ```
 sbatch submit_fastq2ezbark.sh
 ```
