@@ -8,7 +8,7 @@ All scientific logic, scripts, and parameterization are inherited from the origi
 
 ---
 
-## Key differences from upstream
+## Key differences from original workflow
 
 + No Conda environments
 + No Singularity containers
@@ -18,7 +18,7 @@ All scientific logic, scripts, and parameterization are inherited from the origi
 + Snakemake rules minimally edited to remove `conda:` blocks
 + Wrapper usage preserved where compatible (e.g. `fastp`)
 
-This approach is intended for shared HPC systems where Conda and Singularity are unavailable or discouraged.
+These modifications are intended for HPC systems where Conda is unavailable or discouraged.
 
 ---
 
@@ -30,14 +30,12 @@ This workflow is adapted from [fastq2EZbakR](https://github.com/isaacvock/fastq2
 
 ---
 
-# Sample Configuration Guide
+# 1. Sample Configuration Guide
 
-This section explains **exactly how to define samples** for use with this pipeline.  
-No other files need to be modified when changing samples, provided paths and parameters are valid.
+This section explains **how to define samples** for use with this pipeline.  
+Samples are defined in `config/config.yaml`. No other files need to be modified when changing samples, provided file paths are valid.
 
----
-
-## 1. Sample identifiers
+## A) Sample identifiers
 
 Samples are defined by **sample IDs**, which are used consistently across:
 
@@ -63,9 +61,11 @@ Sample ID rules:
 
 ---
 
-## 2. Required sample-level parameters
+## B) Required sample-level parameters
 
 Each sample must appear in the following config sections.
+
+*Note: When any of the options `cB`, `cUP`, or `arrow` in the `config/config.yaml` are set to `True`, these parameters are used by the EZbakR modeling step as statistical weights representing the assumed fraction of newly synthesized (4sU-labeled) versus pre-existing RNA. They allow the model to partition observed mutations into background signal versus true 4sU-induced T→C conversions.*
 
 pnews
 ```yaml
@@ -91,9 +91,11 @@ polds:
 + Every sample ID must appear in both dictionaries
 + Values are passed directly to EZbakR modeling steps
 
+*The default 0.5 / 0.5 values are neutral priors that allow the pipeline to run, but they are not biologically meaningful. For quantitative interpretation (e.g., estimating RNA synthesis or decay rates), these values should be estimated empirically from the experiment (based on labeling time, incorporation efficiency, or observed global conversion rates).*
+
 ---
 
-## 3. Control samples
+## C) Control samples
 
 Control samples must be explicitly listed.
 
@@ -108,10 +110,10 @@ control_samples:
 
 ---
 
-## 4. Input data modes
+## D) Input data modes
 The pipeline supports two mutually exclusive input modes.
 
-### A. FASTQ input (default)
+### FASTQ input (default)
 Used when starting from raw sequencing data.
 
 ```yaml
@@ -141,7 +143,7 @@ Single-end data (`PE: False`)
 ```
 + Both compressed and uncompressed FASTQs are supported.
 
-### B. BAM input (skip preprocessing)
+### BAM input (skip preprocessing)
 Used when alignments already exist.
 ```yaml
 bam2bakr: True
@@ -164,31 +166,21 @@ When `bam2bakr: True:`
 
 ---
 
-## 5. Paired-end vs single-end
-Set globally in the config file.
+## E) Genome and annotation
 
-`PE: True`
-or
-`PE: False`
-
-+ All samples are assumed to follow the same layout
-
----
-
-## 6. Genome and annotation
 The following files must exist before running the pipeline.
 ```yaml
 genome: data/genome/genome.fasta
 annotation: data/annotation/genome.gtf
 ```
-+ Alignment indices will be created automatically if not present.
+Alignment indices will be created automatically if not present.
 ```
 indices: data/indices/star_index
 ```
 
 ---
 
-## 7. Adding or changing samples
+## F) Adding or changing samples
 To add new samples:
 
 Define new sample IDs
@@ -205,7 +197,7 @@ No other pipeline files need to be edited
 
 ---
 
-## 8. Environment modules (modified from original workflow)
+# 2. Environment modules (modified from original workflow)
 All software dependencies are defined in:
 ```yaml
 config/modules.yaml
@@ -223,33 +215,33 @@ This allows:
 
 ---
 
-## 9. Running the pipeline (modified from original workflow)
+## 3. Running the pipeline (modified from original workflow)
 ### Instructions to run on Slurm managed HPC  
-9A. Download version controlled repository
+3A. Download version controlled repository
 ```
 git clone https://github.com/DonczewLab/fastq2EZbakR_EnvMods.git
 ```
-9B. Load modules
+3B. Load modules
 ```
 module purge
 module load slurm python/3.10
 ```
-9C. Modify config file
+3C. Modify config file
 ```
 vim config/config.yml
 ```
-9D. Dry Run
+3D. Dry Run
 ```
 snakemake -npr
 ```
-9E. Run on HPC with config.yml options
+3E. Run on HPC with config.yml options
 ```
 sbatch submit_fastq2ezbark.sh
 ```
 
 ---
 
-## 10. Licensing
+## 4. Licensing
 
 This repository contains workflow infrastructure, configuration adaptations,
 and HPC environment-module integration developed by the Donczew Lab.
