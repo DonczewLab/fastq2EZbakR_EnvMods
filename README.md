@@ -244,7 +244,7 @@ sbatch submit_fastq2ezbark.sh
 ## 4. Licensing
 
 This repository contains workflow infrastructure, configuration adaptations,
-and HPC environment-module integration developed by the Donczew Lab.
+and HPC environment-module integration developed by Kevin A. Boyd.
 
 These additions are licensed under the Apache License 2.0 — see the [LICENSE](LICENSE) file for details
 
